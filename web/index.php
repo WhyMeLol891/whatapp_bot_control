@@ -1,0 +1,10 @@
+<?php
+declare(strict_types=1);
+require_once __DIR__ . '/includes/auth.php';
+$user = require_login();
+$stats = db()->query("SELECT
+    (SELECT COUNT(*) FROM workers WHERE is_enabled = 1) AS workers,
+    (SELECT COUNT(*) FROM message_jobs WHERE status IN ('pending','processing')) AS queue_count,
+    (SELECT COUNT(*) FROM message_jobs WHERE status = 'sent') AS sent_count,
+    (SELECT COUNT(*) FROM message_jobs WHERE status = 'failed') AS failed_count")->fetch();
+?><!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Dashboard | WhatsApp Bot Control</title><link rel="stylesheet" href="assets/style.css"></head><body><header class="topbar"><strong>WBC</strong><nav><a href="index.php">Dashboard</a><a href="contacts.php">Contacts</a><a href="api/health.php">API health</a><form method="post" action="logout.php" class="inline"><input type="hidden" name="csrf_token" value="<?= htmlspecialchars(csrf_token(), ENT_QUOTES, 'UTF-8') ?>"><button class="link-button">Sign out</button></form></nav></header><main class="shell"><div class="page-heading"><div><p class="eyebrow">OPERATIONS OVERVIEW</p><h1>Good to see you, <?= htmlspecialchars($user['username'], ENT_QUOTES, 'UTF-8') ?></h1></div><span class="status-pill">Consent-first mode</span></div><section class="metrics"><article><span>Enabled workers</span><strong><?= (int) $stats['workers'] ?></strong></article><article><span>Queue</span><strong><?= (int) $stats['queue_count'] ?></strong></article><article><span>Sent</span><strong><?= (int) $stats['sent_count'] ?></strong></article><article><span>Failed</span><strong><?= (int) $stats['failed_count'] ?></strong></article></section><section class="panel"><h2>System boundary</h2><p>The web application owns authentication, authorization, scheduling, queue state, and audit logs. Workers communicate through the authenticated API and never connect directly to MySQL.</p><p class="muted">Delivery semantics are at-least-once job execution. A worker crash after WhatsApp accepts a message can leave delivery ambiguous.</p></section></main></body></html>

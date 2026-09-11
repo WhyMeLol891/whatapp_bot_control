@@ -1,0 +1,8 @@
+config.ini
+.env
+web/config.local.php
+web/uploads/*
+!web/uploads/.gitkeep
+worker/
+__pycache__/
+*.log
