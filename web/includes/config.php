@@ -22,6 +22,34 @@ function app_config(): array
     return $config;
 }
 
+function app_base_path(): string
+{
+    $script = $_SERVER['SCRIPT_NAME'] ?? $_SERVER['PHP_SELF'] ?? '/';
+    $script = str_replace('\\', '/', $script);
+
+    if (str_contains($script, '/web/')) {
+        $position = strpos($script, '/web/');
+        $base = substr($script, 0, $position);
+    } else {
+        $base = dirname($script);
+    }
+
+    $base = rtrim($base, '/');
+    return $base === '' ? '/' : $base;
+}
+
+function app_redirect_path(string $path): string
+{
+    $base = app_base_path();
+    $normalized = '/' . ltrim($path, '/');
+
+    if ($base === '/') {
+        return $normalized;
+    }
+
+    return $base . $normalized;
+}
+
 function is_production(): bool
 {
     return app_config()['environment'] === 'production';

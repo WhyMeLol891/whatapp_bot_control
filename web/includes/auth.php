@@ -49,7 +49,7 @@ function require_login(): array
 {
     $user = current_user();
     if ($user === null || !(bool) $user['is_active']) {
-        header('Location: /whatapp_bot_control/web/login.php');
+        header('Location: ' . app_redirect_path('web/login.php'));
         exit;
     }
     return $user;

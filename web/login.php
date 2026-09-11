@@ -4,7 +4,7 @@ require_once __DIR__ . '/includes/auth.php';
 start_secure_session();
 
 if (current_user() !== null) {
-    header('Location: index.php');
+    header('Location: ' . app_redirect_path('web/index.php'));
     exit;
 }
 $error = null;
@@ -19,7 +19,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         session_regenerate_id(true);
         $_SESSION['user_id'] = (int) $user['id'];
         $_SESSION['last_activity'] = time();
-        header('Location: index.php');
+        header('Location: ' . app_redirect_path('web/index.php'));
         exit;
     }
     $error = 'Invalid username or password.';
