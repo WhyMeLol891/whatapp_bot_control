@@ -13,9 +13,9 @@ function app_config(): array
     }
 
     $config = [
-        'db_dsn' => getenv('WBC_DB_DSN') ?: 'mysql:host=127.0.0.1;dbname=whatsapp_bot;charset=utf8mb4',
-        'db_user' => getenv('WBC_DB_USER') ?: 'root',
-        'db_password' => getenv('WBC_DB_PASSWORD') ?: '',
+        'db_dsn' => getenv('WBC_DB_DSN') ?: 'mysql:host=127.0.0.1;dbname=synergy1_derricklim_whatapp_bot_control;charset=utf8mb4',
+        'db_user' => getenv('WBC_DB_USER') ?: 'synergy1_yenping',
+        'db_password' => getenv('WBC_DB_PASSWORD') ?: 'R.zb0ZwEuGZ}*fW2',
         'environment' => getenv('WBC_ENV') ?: 'development',
     ];
     date_default_timezone_set(APP_TIMEZONE);
