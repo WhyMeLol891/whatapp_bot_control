@@ -13,11 +13,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['action'] ?? '') === 'send_
     verify_csrf();
     $contactId = filter_input(INPUT_POST, 'contact_id', FILTER_VALIDATE_INT);
     $body = trim((string) ($_POST['body'] ?? ''));
+    $scheduledAt = trim((string) ($_POST['scheduled_at'] ?? ''));
 
     if (!$contactId || $body === '') {
         $error = 'Choose a contact and enter a message.';
     } else {
-        $result = queue_whatsapp_message((int) $contactId, $body, 'Manual WhatsApp send');
+        $result = queue_whatsapp_message((int) $contactId, $body, 'Manual WhatsApp send', $scheduledAt !== '' ? $scheduledAt : null);
         if ($result['ok']) {
             $notice = $result['message'];
             $latest = $pdo->prepare('SELECT id, status, last_error FROM message_jobs WHERE id = ? LIMIT 1');
@@ -86,6 +87,9 @@ $contacts = $pdo->query("SELECT id, name, phone FROM contacts WHERE is_active = 
             </label>
             <label>Message
                 <textarea name="body" rows="6" maxlength="10000" required placeholder="Hello {{name}}..."></textarea>
+            </label>
+            <label>Send time <span class="muted">optional</span>
+                <input type="datetime-local" name="scheduled_at">
             </label>
             <button type="submit">Send message</button>
         </form>

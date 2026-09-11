@@ -50,7 +50,7 @@ function app_redirect_path(string $path): string
     return $base . $normalized;
 }
 
-function queue_whatsapp_message(int $contactId, string $body, string $label = 'Manual WhatsApp send'): array
+function queue_whatsapp_message(int $contactId, string $body, string $label = 'Manual WhatsApp send', ?string $scheduledAt = null): array
 {
     $body = trim($body);
     if ($body === '') {
@@ -68,12 +68,21 @@ function queue_whatsapp_message(int $contactId, string $body, string $label = 'M
         return ['ok' => false, 'status' => 'failed', 'message' => 'This contact has not opted in.'];
     }
 
-    $campaign = $pdo->prepare("INSERT INTO campaigns (name, body, status, created_by) VALUES (?, ?, 'queued', NULL)");
-    $campaign->execute([$label, $body]);
+    $availableAtUtc = null;
+    if ($scheduledAt !== null && trim($scheduledAt) !== '') {
+        $local = DateTimeImmutable::createFromFormat('Y-m-d\TH:i', $scheduledAt, new DateTimeZone(APP_TIMEZONE));
+        if (!$local || $local < new DateTimeImmutable('now', new DateTimeZone(APP_TIMEZONE))) {
+            return ['ok' => false, 'status' => 'failed', 'message' => 'Choose a future date and time or send immediately.'];
+        }
+        $availableAtUtc = $local->setTimezone(new DateTimeZone('UTC'))->format('Y-m-d H:i:s');
+    }
+
+    $campaign = $pdo->prepare("INSERT INTO campaigns (name, body, status, created_by, scheduled_at) VALUES (?, ?, 'queued', NULL, ?)");
+    $campaign->execute([$label, $body, $availableAtUtc]);
     $campaignId = (int) $pdo->lastInsertId();
 
-    $job = $pdo->prepare('INSERT INTO message_jobs (campaign_id, contact_id, phone, rendered_body, available_at) VALUES (?, ?, ?, ?, UTC_TIMESTAMP())');
-    $job->execute([$campaignId, (int) $contact['id'], $contact['phone'], $body]);
+    $job = $pdo->prepare('INSERT INTO message_jobs (campaign_id, contact_id, phone, rendered_body, available_at) VALUES (?, ?, ?, ?, ?)');
+    $job->execute([$campaignId, (int) $contact['id'], $contact['phone'], $body, $availableAtUtc ?? gmdate('Y-m-d H:i:s')]);
     $jobId = (int) $pdo->lastInsertId();
 
     $result = $pdo->prepare('SELECT id, status, last_error, sent_at, updated_at FROM message_jobs WHERE id = ? LIMIT 1');
@@ -85,7 +94,7 @@ function queue_whatsapp_message(int $contactId, string $body, string $label = 'M
         'ok' => true,
         'job_id' => $jobId,
         'status' => $status,
-        'message' => 'Message queued. Waiting for the worker to confirm delivery.',
+        'message' => $availableAtUtc ? 'Message scheduled successfully.' : 'Message queued. Waiting for the worker to confirm delivery.',
         'last_error' => $row['last_error'] ?? null,
     ];
 }
