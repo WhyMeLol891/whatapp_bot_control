@@ -50,6 +50,46 @@ function app_redirect_path(string $path): string
     return $base . $normalized;
 }
 
+function queue_whatsapp_message(int $contactId, string $body, string $label = 'Manual WhatsApp send'): array
+{
+    $body = trim($body);
+    if ($body === '') {
+        return ['ok' => false, 'status' => 'failed', 'message' => 'Message body is required.'];
+    }
+
+    $pdo = db();
+    $stmt = $pdo->prepare('SELECT id, name, phone, consent_status, is_active FROM contacts WHERE id = ? LIMIT 1');
+    $stmt->execute([$contactId]);
+    $contact = $stmt->fetch();
+    if (!$contact || !(int) $contact['is_active']) {
+        return ['ok' => false, 'status' => 'failed', 'message' => 'This contact is inactive or missing.'];
+    }
+    if (($contact['consent_status'] ?? '') !== 'opt_in') {
+        return ['ok' => false, 'status' => 'failed', 'message' => 'This contact has not opted in.'];
+    }
+
+    $campaign = $pdo->prepare("INSERT INTO campaigns (name, body, status, created_by) VALUES (?, ?, 'queued', NULL)");
+    $campaign->execute([$label, $body]);
+    $campaignId = (int) $pdo->lastInsertId();
+
+    $job = $pdo->prepare('INSERT INTO message_jobs (campaign_id, contact_id, phone, rendered_body, available_at) VALUES (?, ?, ?, ?, UTC_TIMESTAMP())');
+    $job->execute([$campaignId, (int) $contact['id'], $contact['phone'], $body]);
+    $jobId = (int) $pdo->lastInsertId();
+
+    $result = $pdo->prepare('SELECT id, status, last_error, sent_at, updated_at FROM message_jobs WHERE id = ? LIMIT 1');
+    $result->execute([$jobId]);
+    $row = $result->fetch();
+
+    $status = $row['status'] ?? 'pending';
+    return [
+        'ok' => true,
+        'job_id' => $jobId,
+        'status' => $status,
+        'message' => 'Message queued. Waiting for the worker to confirm delivery.',
+        'last_error' => $row['last_error'] ?? null,
+    ];
+}
+
 function is_production(): bool
 {
     return app_config()['environment'] === 'production';
